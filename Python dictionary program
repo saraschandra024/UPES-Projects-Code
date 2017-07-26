@@ -1,0 +1,14 @@
+def count_words(my_string):
+    last_letters=['o']
+    slast_letters=['n']
+    text=my_string.split()
+    my_dict={}
+    for name in text:
+        for i in range (len(name)-2,len(name)-1):
+            if name[i] in last_letters and name[i+1] in slast_letters:
+                print(name)
+
+                my_dict[name]=name.count(name)
+    print(my_dict)   
+
+count_words("Strings are amongst the most popular data types in Python . We can create the strings by enclosing characters in quotes. Python treats single quotes the same as double quotes.")
