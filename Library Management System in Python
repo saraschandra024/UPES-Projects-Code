@@ -1,0 +1,373 @@
+import cx_Oracle
+con=cx_Oracle.connect("""system/saras@XE""")
+cur=con.cursor() 
+
+from sqlalchemy import create_engine
+engine=create_engine("oracle://system:saras@XE")
+connection=engine.connect()
+
+from sqlalchemy.ext.declarative import declarative_base
+Base=declarative_base()
+
+from sqlalchemy import Column,Integer,String,Date
+class User(Base):
+    __tablename__ = 'newuser'
+    user_id=Column(Integer, primary_key=True)
+    username=Column(String(50),nullable=False)
+    password=Column(String(50),nullable=False)
+    firstname=Column(String(50),nullable=False)
+    lastname=Column(String(50),nullable=False)
+    gender=Column(String(50),nullable=False)
+    email=Column(String(50),nullable=False)
+    address=Column(String(50),nullable=False)
+    department=Column(String(50),nullable=False)
+
+class Book(Base):
+    __tablename__= 'book'
+    
+    title=Column(String(50),nullable=False)
+    author=Column(String(255),nullable=False)
+    publication=Column(String(50),nullable=False)
+    publication_year=Column(Integer(),nullable=False)
+    book_isbn=Column(String(50),primary_key=True)
+    number_of_books=Column(Integer(),nullable=False)
+
+class issue_history(Base):
+    __tablename__= 'issue'
+    current_status=Column(String(50))
+    issue_date=Column(Date(),nullable=False)
+    return_date=Column(Date(),nullable=False)
+    issue_id=Column(String(50),primary_key=True)
+    today_date=Column(Date(),nullable=False)
+class todaydates(Base):
+    __tablename__= 'todaydate'
+    today_date=Column(Date(),primary_key=True)
+    return_date=Column(Date(),nullable=False)
+
+Base.metadata.create_all(engine)
+
+def add_user():
+    add_user_id=(input('Enter the User ID:'))
+    add_username=input('Enter the Username:')
+    add_password=input('Enter the Password:')
+    add_firstname=input('Enter the First Name:')
+    add_lastname=input('Enter the Last Name:')
+    add_gender=input('Gender:')
+    add_email=input('Email:')
+    add_address=input('Enter the Address:')
+    add_department=input('Enter the Department:')
+    
+  
+
+    cur.execute("""INSERT INTO newuser(user_id,username,password,firstname,lastname,gender,email,address,department) VALUES(:paramuserid,:paramusername,:parampassword,:paramfirstname,:paramlastname,:paramgender,:paramemail,:paramaddress,:paramdepartment)""",{'paramuserid':add_user_id,'paramusername':add_username,'parampassword':add_password,'paramfirstname':add_firstname,'paramlastname':add_lastname,'paramgender':add_gender,'paramemail':add_email,'paramaddress':add_address,'paramdepartment':add_department})
+    con.commit()
+
+
+def add_book():
+    
+    add_title=(input('Enter the Book Title:'))
+    add_author=input('Enter the Book Author:')
+    add_publication=input('Enter the Book Publication:')
+    add_publication_year=input('Enter the year of Publication of book:')
+    add_book_isbn=input('Enter the ISBN code of a book:')
+    add_num_of_books=input('Enter number of books having same ISBN:')
+    print("Book added")
+    cur.execute("""INSERT INTO book(title,author,publication,publication_year,book_isbn,number_of_books) VALUES(:paramtitle,:paramauthor,:parampublication,:parampublicationyear,:parambookisbn,:paramnumberofbooks)""",{'paramtitle':add_title,'paramauthor':add_author,'parampublication':add_publication,'parampublicationyear':add_publication_year,'parambookisbn':add_book_isbn,'paramnumberofbooks':add_num_of_books})    
+    con.commit()
+
+def allocate():
+    cur.execute("""SELECT * FROM book""")
+    book_isbn =input("Enter book isbn to be allocated:")
+    for row in cur:
+        issue_book_isbn=row[4]
+        if book_isbn in issue_book_isbn:
+            
+            add_issue_date =input('Enter issueing date:')
+            add_return_date =input('Enter return date:')
+            
+            if add_issue_date > add_return_date:
+                print('Issueing date cannot be after return date')
+            else:
+                enrollment_no=input("Enter Enrollment no")
+                add_current_status='Book Issued'
+
+                add_issue_id=book_isbn+enrollment_no
+                print(add_current_status)
+                print("This is your issue id:",add_issue_id)
+                print("Your issued date is:",add_issue_date)
+                print("Your return date is:",add_return_date)              
+                
+                cur.execute("""INSERT INTO issue(current_status,issue_date,return_date,issue_id) VALUES(:paramcurrentstatus,:paramissuedate,:paramreturndate,:paramissueid)""",{'paramcurrentstatus':add_current_status,'paramissuedate':add_issue_date,'paramreturndate':add_return_date,'paramissueid':add_issue_id})
+                con.commit()
+
+
+        
+            
+def deallocate():
+    de_alloc_issue_id =input('Enter the issue id provided to you:')
+    
+    cur.execute("""SELECT * FROM issue""")
+    for row in cur:
+        issue_id=row[3]
+        if de_alloc_issue_id in issue_id:
+            add_return_date=input("Return Date:")
+            add_today_date=input('Enter the Todays date:')
+
+            cur.execute("""INSERT INTO todaydate(return_date,today_date) VALUES(:paramreturndate,:paramtodaydate)""",{'paramreturndate':add_return_date,'paramtodaydate':add_today_date})
+            con.commit()
+
+            cur.execute("""SELECT * FROM issue""")
+            return_date=row[2]
+            for row in cur:
+                if add_today_date == add_return_date:
+                    cur.execute("SELECT * FROM issue")
+                    for row in cur:
+                        issue_id=row[3]
+                        if de_alloc_issue_id in issue_id:
+                            cur.execute("""DELETE FROM issue WHERE issue_id=:paramissueid""",{'paramissueid':de_alloc_issue_id})
+                            con.commit()
+                            print ('Book returned')
+                            print('No Fine')
+                elif add_today_date > add_return_date:
+                    cur.execute("""SELECT today_date - return_date FROM todaydate""")
+                    date_diff_list=[]
+                    for row in cur:
+                        date_diff_list.append(row[0])
+                    fine=int('5')*date_diff_list[-1]
+                    print("Your fine is",fine)
+                    cur.execute("SELECT * FROM issue")
+                    for row in cur:
+                        issue_id=row[3]
+                        if de_alloc_issue_id in issue_id:
+                            cur.execute("""DELETE FROM issue WHERE issue_id=:paramissueid""",{'paramissueid':de_alloc_issue_id})
+                            con.commit()
+                            print("Book returned")
+                else:
+                    print('return date could not be after today date')
+
+            
+       
+                
+
+def remove_book():
+    check_book_isbn=input("Enter the ISBN code of the book you want to remove:")
+    cur.execute("SELECT * FROM book")
+    for row in cur:
+        ibook_isbn=row[4]
+        if check_book_isbn in ibook_isbn:
+            cur.execute("""DELETE FROM book WHERE book_isbn=:parambookisbn""",{'parambookisbn':check_book_isbn})
+            con.commit()
+            print("Book Removed")
+        else:
+            print("Invalid Book ISBN ID")
+            
+
+def details_of_book():
+   
+    cur.execute(""" SELECT * FROM  book """)
+    print("Books Added Detail:")
+    data=cur.fetchall()
+    i=0
+    while i<=len(data)-1:
+        while True:
+            print("\n""Book Title:",data[i][0])
+            print("Book Author:",data[i][1])
+            print("Book Publication:",data[i][2])
+            print("Book Publication Year:",data[i][3])
+            print("Book ISBN No.:",data[i][4])
+            print("Number of Books:",data[i][5])
+            break
+        i+=1
+
+    cur.execute(""" SELECT * FROM  ISSUE """)
+    print("\n""\n""\n""Book Issue Detail:")
+    data=cur.fetchall()
+    i=0
+    while i<=len(data)-1:
+        while True:
+            print("\n""Current Status of Book:",data[i][0])
+            print("Issue Date of Book:",data[i][1])
+            print("Return Date of Book :",data[i][2])
+            print("Book Issue ID:",data[i][3])
+            break
+        i+=1
+    
+def log_out():
+
+    sign_in_user()
+    
+    
+ 
+    
+    
+       
+
+def sign_in_user():
+    try:
+        while True:
+            
+            cur.execute("""SELECT * FROM newuser""")
+            username=input("\n""Enter the Username:")
+            password=input("Enter the Password:")
+            for row in cur:
+                if username in row[1] and password in row[2]:
+                    print("\n""\n""Welcome to Python Library:")
+                    print ("""
+                    a.To add a Book
+                    b.To allocate a Book
+                    c.To return a Book
+                    d.To remove a book from Collection
+                    e.Detail of books
+                    f.Log Out
+                      """)
+	 	
+
+	
+                    user_choice=True
+                    while user_choice:
+            
+                        user_choice =input('Enter your choice :')
+                        if  user_choice == 'a':
+                            add_book()
+                            print("\n")
+        
+      
+                        elif  user_choice == 'b':
+                            allocate()
+                            print("\n")
+
+                        elif  user_choice == 'c':
+                            deallocate()
+                            print("\n")
+       
+                        elif  user_choice == 'd':
+                            remove_book()
+                            print("\n")
+    
+                        elif  user_choice == 'e':
+                            details_of_book()
+                            print("\n")
+
+                        elif  user_choice == 'f':
+                            log_out()
+                            print("\n")
+
+                        else:
+                            print ("Invalid choice")
+        
+                
+
+        print("Access Granted")
+        return True
+
+    except:
+        return False
+        
+
+
+
+
+
+def menu():
+    print ("""
+                  1.Sign UP(New Member)
+                  2.Sign IN(Existing User)
+                  3.Admin Sign In
+                  4.Exit
+
+                """)
+    user_choice=True
+    while user_choice:
+        user_choice =input('Enter your choice :')
+        if  user_choice == '1':
+            add_user()
+            print("\n")
+
+        elif  user_choice == '2':
+            sign_in_user()
+            print("\n")
+
+        elif  user_choice == '3':
+            admin()
+            print("\n")
+
+        elif  user_choice == '4':
+            Exit()
+            print("\n")
+       
+        else:
+            print("Invalid Option")
+
+
+
+
+def admin():
+       try:
+           adminusername='saraschandra024'
+           adminpassword='Gmail@123'
+           while True:
+               username=input("Enter Username:")
+               password=input("Enter Password:")
+               if username==adminusername and password==adminpassword:
+                   
+                   print ("""
+                      a.To add a Book
+                      b.To allocate a Book
+                      c.To return a Book
+                      d.To remove a book from Collection
+                      e.Detail of books
+                      """)
+                   user_choice=True
+                   while user_choice:
+                       
+                       user_choice =input('Enter your choice :')
+                       if  user_choice == 'a':
+                           add_book()
+                           print("\n")
+        
+      
+                       elif  user_choice == 'b':
+                           allocate()
+                           print("\n")
+
+                       elif  user_choice == 'c':
+                           deallocate()
+                           print("\n")
+       
+                       elif  user_choice == 'd':
+                           remove_book()
+                           print("\n")
+    
+                       elif  user_choice == 'e':
+                           details_of_book()
+                           print("\n")
+
+                       else:
+                           print ("Invalid choice")
+        
+               else:
+                   print("\n""Invalid Username and Password")
+
+           print("Access Granted")
+           return True
+
+       except:
+           return False
+    
+def Exit():
+    exit()
+
+menu()
+admin()
+
+
+
+
+
+
+
+ 
+
+    
+
+
